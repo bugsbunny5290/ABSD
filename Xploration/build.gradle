@@ -1,0 +1,39 @@
+group 'xploration.company01'
+version '0.0.1'
+
+apply plugin: 'java'
+apply plugin: 'idea'
+apply plugin: 'maven'
+
+
+uploadArchives {
+    repositories {
+        mavenDeployer {
+            repository(url: "http://mvn.fap.no/content/repositories/xploration") {
+                authentication(userName: "xploration", password: "deb1032e908e5337259969f6a821a7ec075209c6272f16306e9c6e4e5d79")
+            }
+            pom.version = version
+            pom.artifactId = "company01"
+            pom.groupId = "es.upm.company01"
+        }
+    }
+}
+
+idea {
+    module {
+        downloadJavadoc = true
+    }
+}
+
+repositories {
+    mavenCentral()
+    maven { url "http://jade.tilab.com/maven" }
+    maven { url "https://jitpack.io" }
+}
+
+dependencies {
+    compile 'com.tilab.jade:jade:4.4.0'
+    compile 'com.github.kradalby:xploration-shared:0.0.6'
+    compile 'joda-time:joda-time:2.9.3'
+
+}
