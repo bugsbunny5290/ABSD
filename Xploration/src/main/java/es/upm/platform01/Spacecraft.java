@@ -16,6 +16,7 @@ import jade.content.*;
 import jade.content.onto.*;
 import jade.content.onto.basic.*;
 
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
 
@@ -32,17 +33,19 @@ public class Spacecraft extends Agent {
 
 	private static final long serialVersionUID = 1L;
 	public final static String SPACECRAFT = "Spacecraft";
-	public final static String COMPANY_X = "Company6";
+	
+	ArrayList<String> companiesRegister;
+	final Calendar registerTime_Begin = Calendar.getInstance();
+	final Calendar registerTime_End = Calendar.getInstance();
+	final Calendar Currentime = Calendar.getInstance();
 
 	// AID[] registeredCompanies = new AID[20];
 
 	protected void setup() {
-		final Calendar registerTime_Begin = Calendar.getInstance();
-		final Calendar registerTime_End = Calendar.getInstance();
-		final Calendar Currentime = Calendar.getInstance();
+		
+		companiesRegister = new ArrayList();
 
 		// Register of the codec and the ontology to be used in the
-		// ContentManager
 		getContentManager().registerLanguage(codec);
 		getContentManager().registerOntology(ontology);
 
@@ -73,96 +76,116 @@ public class Spacecraft extends Agent {
 			e.printStackTrace();
 		}
 
-		addBehaviour(new SimpleBehaviour(this) {
-			boolean end = false;
+		addBehaviour(new CyclicBehaviour(this) {
 			private static final long serialVersionUID = 1L;
 
 			public void action() {
-				// Waits for answer to the request
-				ACLMessage msg = receive(MessageTemplate.and(
+				MessageTemplate mt = MessageTemplate.and(
 						MessageTemplate.and(MessageTemplate.MatchLanguage(codec.getName()),
 								MessageTemplate.MatchOntology(ontology.getName())),
 						MessageTemplate.and(MessageTemplate.MatchProtocol(ontology.PROTOCOL_REGISTRATION),
-								MessageTemplate.MatchPerformative(ACLMessage.REQUEST))));
+								MessageTemplate.MatchPerformative(ACLMessage.REQUEST)));
+				
+				// The ContentManager transforms the message content (string) in java objects
+				ContentElement cElementSpace = null;
+				
+				// Waits for request
+				ACLMessage msgRequest = myAgent.receive(mt);
+				
 				try {
-					ContentElement ce = null;
-					if (msg != null) {
-						// The ContentManager transforms the message content
-						// (string)
-						// in java objects
+					
+					if (msgRequest != null) {
 						// Unpacking the content
-						ce = getContentManager().extractContent(msg);
+						cElementSpace = getContentManager().extractContent(msgRequest);
+						
 						// We expect an action inside the message
-						if (ce instanceof Action) {
-							Action agAction = (Action) ce;
-							Concept conc = agAction.getAction();
-							// If the action is EstimationRequest...
-							if (conc instanceof RegistrationRequest) {
-								RegistrationRequest request = (RegistrationRequest) conc;
-								request.getCompany();
-								// Between the Period of Registration (Boundary
-								// included)
+						if (cElementSpace instanceof Action) {
+							
+							Action agAction = (Action)cElementSpace;
+							Concept concRegistration = agAction.getAction();
+							
+							// If the action is RegistrationRequest...
+							if (concRegistration instanceof RegistrationRequest) {
+								RegistrationRequest request = (RegistrationRequest) concRegistration;
+								
+								ACLMessage reply = msgRequest.createReply();
+								reply.setSender(getAID());
+								reply.setProtocol(ontology.PROTOCOL_REGISTRATION);
+								reply.setOntology(ontology.getName()); 
+								reply.setLanguage(codec.getName());
+								reply.addReceiver(msgRequest.getSender());
+								
+								// Between the Period of Registration (Boundary included)
 								if (inThePeriod(registerTime_Begin, registerTime_End, Currentime)) {
-									ACLMessage reply = msg.createReply();
-									//reply.setContent(REFUSE);
-									myAgent.send(reply);
-									System.out
-											.println(myAgent.getLocalName() + ": answer sent -> " + reply.getContent());
-									end = true;
-								} else {
-
-									//if ((msg.getContent()).contains(COMPANY_X)) {
-										// If an Request arrives, it answers
-										// with the ....
-										System.out.println(myAgent.getLocalName() + ": received a request from "
-												+ (msg.getSender()).getLocalName());
-										ACLMessage reply = msg.createReply();
+									
+										//Get Company
+										String companyName = request.getCompany();
+										
+										// If an Request arrives
+										System.out.println(myAgent.getLocalName() + ": received a request from "+ (msgRequest.getSender()).getLocalName());
+										
 										reply.setPerformative(ACLMessage.AGREE);
-										myAgent.send(reply);
-										System.out.println(
-												myAgent.getLocalName() + ": answer sent -> " + reply.getContent());
-
+										
+										//Send the message
+										send(reply);
+										
 										doWait(5000);
+										
+										//Company exists
+										if (!companiesRegister.contains(companyName)){
+											
+											System.out.println(myAgent.getLocalName() + ": register "+ (msgRequest.getSender()).getLocalName() );
+											
+											companiesRegister.add(companyName);											
+											reply.setPerformative(ACLMessage.INFORM);
+											
+											//Send the message
+											send(reply);
+											
+											doWait(5000);
+										}else{
+											
+											System.out.println(myAgent.getLocalName() + ": respond "+ (msgRequest.getSender()).getLocalName() + " is already registered"  );
+											
+											reply.setPerformative(ACLMessage.FAILURE);
+											
+											//Send the message
+											send(reply);
+											
+											doWait(5000);
+										}
+										
+								} else {
+									reply.setPerformative(ACLMessage.REFUSE);
+									
+									//Send the message
+									send(reply);
+									
+									doWait(5000);
 
-										// Send the answer
-										System.out.println(getLocalName() + ": Send answer");
-										ACLMessage respond = msg.createReply();
-										respond.setPerformative(ACLMessage.INFORM);
-										respond.addReceiver(msg.getSender());
-										send(respond);
-										System.out.println(getLocalName() + ": Sent Register to Company");
-										System.out.println(respond.toString());
-										end = true;
-
-									/*} else {
-										ACLMessage reply = msg.createReply();
-										reply.setContent(NOT_UNDERSTOOD);
-										myAgent.send(reply);
-
-										System.out.println(
-												myAgent.getLocalName() + ": answer sent -> " + reply.getContent());
-										end = true;
-									}*/
 								}
 							}
 
+						} else {
+							ACLMessage reply = msgRequest.createReply();
+							reply.setSender(getAID());
+							reply.setProtocol(ontology.PROTOCOL_REGISTRATION);
+							reply.setOntology(ontology.getName()); 
+							reply.setLanguage(codec.getName());
+							reply.setPerformative(ACLMessage.NOT_UNDERSTOOD);
+							reply.addReceiver(msgRequest.getSender());
+							
+							//Send the message
+							send(reply);
+
 						}
+						
+					} else {
+						block();
 					}
-				} catch (Exception e) {
-					ACLMessage reply = msg.createReply();
-					//reply.setContent(FAILURE);
-					myAgent.send(reply);
-
-					System.out.println(myAgent.getLocalName() + ": answer sent -> " + reply.getContent());
-					end = true;
-
+				} catch (Exception e) {					
 					e.printStackTrace();
-
 				}
-			}
-
-			public boolean done() {
-				return end;
 			}
 		});
 	}
@@ -170,14 +193,14 @@ public class Spacecraft extends Agent {
 	public boolean inThePeriod(Calendar registerTime_Begin, Calendar registerTime_End, Calendar Currentime) {
 
 		if (Currentime.getTime().equals(registerTime_Begin.getTime()))
-			return false;
+			return true;
 		if (Currentime.getTime().equals(registerTime_End.getTime()))
-			return false;
+			return true;
 		if (Currentime.getTime().before(registerTime_Begin.getTime())
 				|| Currentime.getTime().after(registerTime_End.getTime())) {
-			return true;
-		} else
 			return false;
+		} else
+			return true;
 
 	}
 
