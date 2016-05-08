@@ -17,15 +17,21 @@ import jade.content.onto.*;
 import jade.content.onto.basic.*;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 import org.joda.time.DateTime;
 
 import es.upm.ontology.Location;
 import es.upm.ontology.RegistrationRequest;
 import es.upm.ontology.ReleaseCapsule;
+import es.upm.ontology.RequestRoverMovement;
 import es.upm.ontology.XplorationOntology;
+import es.upm.platform01.Spacecraft.RegistrationBehaviour;
+import es.upm.platform01.Spacecraft.ReleaseCapsuleBehavoiur;
 
-public class Spacecraft extends Agent {
+public class World extends Agent{
 
 	// Codec for the SL language used and instance of the ontology
 	private Codec codec = new SLCodec();
@@ -34,36 +40,27 @@ public class Spacecraft extends Agent {
 	public XplorationOntology ontology = (XplorationOntology) XplorationOntology.getInstance();
 
 	private static final long serialVersionUID = 1L;
-	public final static String SPACECRAFT = "Spacecraft";
+	public final static String WORLD = "World";
+	
+	public Map<Integer, AID> directionRover = new HashMap<Integer, AID>(); 
 	
 	ArrayList<AID> companiesRegister = new ArrayList();
-	//ArrayList<String> companiesRegister = new ArrayList();
-	DateTime registerTime_Begin; 
-	DateTime registerTime_End;
-	DateTime Currentime;
+	
+	int numRequest = 0;
 
 	protected void setup() {
-
 		// Register of the codec and the ontology to be used in the
 		getContentManager().registerLanguage(codec);
 		getContentManager().registerOntology(ontology);
-
-		/*registerTime_Begin.set(2016, 3, 19);
-		registerTime_End.set(2016, 12, 27);
-		Currentime.getTime();*/
 		
-		registerTime_Begin = DateTime.now();
-		registerTime_End = DateTime.now().plusSeconds(50);
-
 		System.out.println(getLocalName() + ": has entered");
-		System.out.println(getLocalName() + ": Period of Registration: " + registerTime_Begin + " - "
-				+ registerTime_End);
+		
 		try {
 			// Creates its own description
 			DFAgentDescription dfd = new DFAgentDescription();
 			ServiceDescription sd = new ServiceDescription();
 			sd.setName(this.getName());
-			sd.setType(SPACECRAFT);
+			sd.setType(WORLD);
 			dfd.addServices(sd);
 
 			// Registers its description in the DF
@@ -71,88 +68,21 @@ public class Spacecraft extends Agent {
 			System.out.println(getLocalName() + ": registered in the DF");
 			dfd = null;
 			sd = null;
-			doWait(1000);
+			doWait(500);
 			
-			RegistrationBehaviour registerCompany = new RegistrationBehaviour(this);
-			addBehaviour(registerCompany); 
-			
-			//doWait(5000);
-			
-			ReleaseCapsuleBehavoiur releaseCapsuleCompany = new ReleaseCapsuleBehavoiur(this);
-			addBehaviour(releaseCapsuleCompany);
+			MovementBehaviour moveRover = new MovementBehaviour(this);
+			addBehaviour(moveRover); 
 			
 		} catch (FIPAException e) {
 			e.printStackTrace();
 		}
+
 	}
 	
-	class ReleaseCapsuleBehavoiur extends SimpleBehaviour{
-		private boolean endRelease = false;
-		ArrayList<String> companies;
-		
-		public ReleaseCapsuleBehavoiur(Agent a) {
-			 super(a);
-		}
-		
-		public void action() {
-			
-			if ( DateTime.now().isAfter(registerTime_End)) {
-
-				//endRelease = true;
-
-				//for(String companyReg : companiesRegister)
-				for(AID companyReg : companiesRegister)
-				{
-					System.out.println("Company ----->" + companyReg);
-					
-					// Asks request to the Spacecraft
-					ACLMessage msg = new ACLMessage(ACLMessage.INFORM);
-					msg.setSender(getAID());
-					msg.setProtocol(ontology.PROTOCOL_RELEASE_CAPSULE);
-					msg.setOntology(ontology.getName()); 
-					msg.setLanguage(codec.getName());
-					msg.addReceiver(companyReg);
-					
-					//Location for Companies
-					ReleaseCapsule objReleaseCapsule = new ReleaseCapsule();
-					Location objLocation = new Location();
-					
-					objLocation.setX(1);
-					objLocation.setY(2);
-					
-					objReleaseCapsule.setLocation(objLocation);
-
-		
-					//Package the message
-					try {
-						getContentManager().fillContent(msg, new Action(getAID(), objReleaseCapsule));
-					} catch (CodecException e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
-					} catch (OntologyException e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
-					}
-		
-					//Send the message
-					send(msg);
-					
-				}
-				
-				endRelease = true;
-			}
-			
-		}
-		
-		public boolean done() {
-			return endRelease;
-		}
-	}
-
-	class RegistrationBehaviour extends CyclicBehaviour {
+	class MovementBehaviour extends CyclicBehaviour {
 		private static final long serialVersionUID = 1L;
-		
-		public RegistrationBehaviour(Agent a) {
+				
+		public MovementBehaviour(Agent a) {
 			 super(a);
 		} 
 
@@ -160,7 +90,7 @@ public class Spacecraft extends Agent {
 			MessageTemplate mt = MessageTemplate.and(
 					MessageTemplate.and(MessageTemplate.MatchLanguage(codec.getName()),
 							MessageTemplate.MatchOntology(ontology.getName())),
-					MessageTemplate.and(MessageTemplate.MatchProtocol(ontology.PROTOCOL_REGISTRATION),
+					MessageTemplate.and(MessageTemplate.MatchProtocol(ontology.PROTOCOL_ROVER_MOVEMENT),
 							MessageTemplate.MatchPerformative(ACLMessage.REQUEST)));
 			
 			// The ContentManager transforms the message content (string) in java objects
@@ -172,6 +102,8 @@ public class Spacecraft extends Agent {
 			try {
 				
 				if (msgRequest != null) {
+					numRequest++;
+					
 					// Unpacking the content
 					cElementSpace = getContentManager().extractContent(msgRequest);
 					
@@ -179,37 +111,52 @@ public class Spacecraft extends Agent {
 					if (cElementSpace instanceof Action) {
 						
 						Action agAction = (Action)cElementSpace;
-						Concept concRegistration = agAction.getAction();
+						Concept concReqMovement = agAction.getAction();
 						//AID agentSender = agAction.getActor();
 						
 						// If the action is RegistrationRequest...
-						if (concRegistration instanceof RegistrationRequest) {
-							RegistrationRequest request = (RegistrationRequest) concRegistration;
+						if (concReqMovement instanceof RequestRoverMovement) {
+							RequestRoverMovement request = (RequestRoverMovement) concReqMovement;
+							
+							int direction = request.getDirection().getX();
 							
 							ACLMessage reply = msgRequest.createReply();
 							reply.setSender(getAID());
-							reply.setProtocol(ontology.PROTOCOL_REGISTRATION);
+							reply.setProtocol(ontology.PROTOCOL_ROVER_MOVEMENT);
 							reply.setOntology(ontology.getName()); 
 							reply.setLanguage(codec.getName());
 							reply.addReceiver(msgRequest.getSender());
 							
-							Currentime = DateTime.now();
-							
-							// Between the Period of Registration (Boundary included)
-							if (inThePeriod(registerTime_Begin, registerTime_End, Currentime)) {
-								
-									//Get Company
-									String companyName = request.getCompany();
+							// If doesn't exist the position
+							if(!directionRover.containsKey(direction)) {
+									if (numRequest == 1){
+										//Get Company
+										String roverName = msgRequest.getSender().getLocalName();
+										
+										// If an Request arrives
+										System.out.println(myAgent.getLocalName() + ": answer agree to "+ roverName);
+										
+										reply.setPerformative(ACLMessage.AGREE);
+										
+										//Send the message
+										send(reply);
+										
+										//Add direction and agent
+										directionRover.put(direction, msgRequest.getSender());
+									} else
+									{
+										//Rover crash with another rover
+										reply.setPerformative(ACLMessage.REFUSE);
+										
+										//Send the message
+										send(reply);
+									}
 									
-									// If an Request arrives
-									System.out.println(myAgent.getLocalName() + ": received a request from "+ companyName);
 									
-									reply.setPerformative(ACLMessage.AGREE);
 									
-									//Send the message
-									send(reply);
+									/*
 									
-									//Company exists
+									//If Rover sends CANCEL
 									if (!companiesRegister.contains(msgRequest.getSender())){
 										
 										System.out.println(myAgent.getLocalName() + ": register "+ companyName );
@@ -233,16 +180,17 @@ public class Spacecraft extends Agent {
 										//Send the message
 										send(reply);
 										
-										//doWait(5000);
-									}
+										doWait(5000);
+									}*/
 									
 							} else {
-								reply.setPerformative(ACLMessage.REFUSE);
+								//Rover crash with another rover
+								reply.setPerformative(ACLMessage.FAILURE);
 								
 								//Send the message
 								send(reply);
 								
-								//doWait(5000);
+								doWait(1000);
 
 							}
 						}
@@ -250,7 +198,7 @@ public class Spacecraft extends Agent {
 					} else {
 						ACLMessage reply = msgRequest.createReply();
 						reply.setSender(getAID());
-						reply.setProtocol(ontology.PROTOCOL_REGISTRATION);
+						reply.setProtocol(ontology.PROTOCOL_ROVER_MOVEMENT);
 						reply.setOntology(ontology.getName()); 
 						reply.setLanguage(codec.getName());
 						reply.setPerformative(ACLMessage.NOT_UNDERSTOOD);
@@ -268,20 +216,5 @@ public class Spacecraft extends Agent {
 				e.printStackTrace();
 			}
 		}
-	}
-
-	public boolean inThePeriod(DateTime registerTime_Begin, DateTime registerTime_End, DateTime Currentime) {
-
-		if (Currentime.equals(registerTime_Begin))
-			return true;
-		if (Currentime.equals(registerTime_End))
-			return true;
-		if (Currentime.isBefore((registerTime_Begin))
-				|| Currentime.isAfter(registerTime_End)) {
-			return false;
-		} else
-			return true;
-
-	}
-
+	}	
 }
