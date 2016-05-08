@@ -7,6 +7,9 @@ import jade.domain.DFService;
 import jade.core.behaviours.*;
 import jade.lang.acl.ACLMessage;
 import jade.lang.acl.MessageTemplate;
+import jade.wrapper.AgentController;
+import jade.wrapper.ContainerController;
+import jade.wrapper.StaleProxyException;
 import jade.content.lang.Codec;
 import jade.content.lang.Codec.*;
 import jade.content.lang.sl.*;
@@ -30,6 +33,9 @@ public class Company extends Agent {
 	
 	// Name of Spacecraft
 	public final static String SPACECRAFT = "Spacecraft";
+	
+	//Name of Capsule
+	public final static String CAPSULE = "Capsule01";
 
 
 	protected void setup() {
@@ -39,21 +45,79 @@ public class Company extends Agent {
 		getContentManager().registerLanguage(codec);
 		getContentManager().registerOntology(ontology);
 		
+		RequestRegistrationBehaviour reqRegister = new RequestRegistrationBehaviour(this);
+		addBehaviour(reqRegister); 
 		
-		//Behaviour REQUEST REGISTRATION 
-		addBehaviour(new SimpleBehaviour(this) {
+		//Release Capsule
+		ReleaseBehaviour releaseCapsule = new ReleaseBehaviour();
+		addBehaviour(releaseCapsule); 
+		
+	}
+	
+	class ReleaseBehaviour extends SimpleBehaviour { 
+		private boolean endRelease = false;
+		
+		public void action() {
+			ContainerController cc = getContainerController();
+			AgentController ac;
+			try {
+				ac = cc.createNewAgent(CAPSULE, "es.upm.company01.Capsule", new Object[] {new String(CAPSULE)});
+				ac.start();
+				endRelease = true;
+			} catch (StaleProxyException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+		
+		public boolean done() {
+			return endRelease;
+		}
+		
+	}
+	
+	//Behaviour REQUEST REGISTRATION 
+	class RequestRegistrationBehaviour extends SimpleBehaviour { 
 			AID agSpacecraft;
-			boolean end = false;
+			private boolean end = false;
+			private String stateRegistration = "BEGIN";
+			
+			public RequestRegistrationBehaviour(Agent a) {
+				 super(a);
+			} 
 
 			public void action() {
+				switch (stateRegistration){
+					case "BEGIN":						
+						sendRegistrationRequest();
+						myAgent.doWait(500);
+						break;
+					case "REQUEST":
+						receiveMessageForRequest();
+						myAgent.doWait(500);
+						break;
+					case "END":
+						this.end = true;
+						break;
+				}
 				
+			}
+
+			public boolean done() {
+				return this.end;
+			}
+			
+			public void sendRegistrationRequest(){
 				//Creates the description for the type of agent to be searched "Spacecraft"
 				DFAgentDescription dfd = new DFAgentDescription();
 				ServiceDescription sd = new ServiceDescription();
+				
 				sd.setType(SPACECRAFT);
 				dfd.addServices(sd);
 				
-				doWait(3000);
+				this.stateRegistration = "REQUEST";
+				
+				myAgent.doWait(1000);
 				try {
 
 					// It finds agents of the required type
@@ -87,50 +151,9 @@ public class Company extends Agent {
 							//Send the message
 							send(msg);
 							
-							//System.out.println(getLocalName() + ": asks for Request to Spacecraft");
-							
+							return;
 						}
-						
-						doWait(2000);
-						// Waiting the answer
-						MessageTemplate mt = MessageTemplate.and(
-								MessageTemplate.and(MessageTemplate.MatchLanguage(codec.getName()),
-										MessageTemplate.MatchOntology(ontology.getName())),
-								MessageTemplate.MatchProtocol(ontology.PROTOCOL_REGISTRATION));
-						
-						ACLMessage msgReceive = myAgent.receive(mt);
-						if (msgReceive != null) {
-							
-							// Process the message
-							int performative = msgReceive.getPerformative();
-							
-							switch (performative)
-					        {
-								case ACLMessage.REFUSE:
-									System.out.println(getLocalName() + ": is late - Spacecraft answers - REFUSE");
-									break;
-								case ACLMessage.AGREE:
-									System.out.println(getLocalName() + ": is waiting for Registering - Spacecraft answers - AGREE");
-									doWait(5000);
-									break;
-								case ACLMessage.FAILURE:
-									System.out.println(getLocalName() + ": is already Registered - Spacecraft answers - FAILURE");
-									end = true;
-									break;
-								case ACLMessage.INFORM:
-									System.out.println(getLocalName() + ": was Registered - Spacecraft answers - INFORM");
-									end = true;
-									break;
-								default:
-									//NOT_UNDERSTOOD
-									System.out.println(getLocalName() + ": Spacecraft answers - NOT UNDERSTOOD");
-									end = true;
-									break;
-					        }
-						} else {
-							end = true;
-						}
-						doWait(5000);
+
 					} else {
 						System.out.println(getLocalName() + ": Didn't found a Spacecraft.");
 					}
@@ -139,12 +162,49 @@ public class Company extends Agent {
 					e.printStackTrace();
 				}
 			}
-
-			public boolean done() {
-				return end;
+			
+			public void receiveMessageForRequest(){
+				// Waiting the answer
+				MessageTemplate mt = MessageTemplate.and(
+						MessageTemplate.and(MessageTemplate.MatchLanguage(codec.getName()),
+								MessageTemplate.MatchOntology(ontology.getName())),
+						MessageTemplate.MatchProtocol(ontology.PROTOCOL_REGISTRATION));
+				
+				ACLMessage msgReceive = myAgent.receive(mt);
+				if (msgReceive != null) {
+					
+					// Process the message
+					int performative = msgReceive.getPerformative();
+					
+					myAgent.doWait(2000);
+					
+					switch (performative)
+			        {
+						case ACLMessage.REFUSE:
+							System.out.println(getLocalName() + ": is late - Spacecraft answers - REFUSE");
+							break;
+						case ACLMessage.AGREE:
+							System.out.println(getLocalName() + ": is waiting for Registering - Spacecraft answers - AGREE");
+							break;
+						case ACLMessage.FAILURE:
+							System.out.println(getLocalName() + ": is already Registered - Spacecraft answers - FAILURE");
+							break;
+						case ACLMessage.INFORM:
+							System.out.println(getLocalName() + ": was Registered - Spacecraft answers - INFORM");
+							//this.stateRegistration = "END";
+							//end = true;
+							break;
+						default:
+							//NOT_UNDERSTOOD
+							System.out.println(getLocalName() + ": Spacecraft answers - NOT UNDERSTOOD");
+							this.stateRegistration = "END";
+							//end = true;
+							break;
+			        }
+				} else {
+					this.end = true;
+				}
 			}
-		});
-
 	}
 
 }
