@@ -21,6 +21,7 @@ import jade.content.onto.basic.*;
 import java.util.Date;
 
 import es.upm.ontology.RegistrationRequest;
+import es.upm.ontology.ReleaseCapsule;
 import es.upm.ontology.XplorationOntology;
 
 public class Company extends Agent {
@@ -48,7 +49,7 @@ public class Company extends Agent {
 		RequestRegistrationBehaviour reqRegister = new RequestRegistrationBehaviour(this);
 		addBehaviour(reqRegister); 
 		
-		//Release Capsule
+		//Release CapsuleSimpleBehaviour
 		ReleaseBehaviour releaseCapsule = new ReleaseBehaviour();
 		addBehaviour(releaseCapsule); 
 		
@@ -58,10 +59,56 @@ public class Company extends Agent {
 		private boolean endRelease = false;
 		
 		public void action() {
+			
+			MessageTemplate mt = MessageTemplate.and(
+					MessageTemplate.and(MessageTemplate.MatchLanguage(codec.getName()),
+							MessageTemplate.MatchOntology(ontology.getName())),
+					MessageTemplate.and(MessageTemplate.MatchProtocol(ontology.PROTOCOL_RELEASE_CAPSULE),
+							MessageTemplate.MatchPerformative(ACLMessage.INFORM)));
+			
+			
+			// The ContentManager transforms the message content (string) in java objects
+			ContentElement cElementSpace = null;
+			
+			// Waits for request
+			ACLMessage msgRequest = myAgent.receive(mt);
+			
+			try {
+				
+				if (msgRequest != null) {
+					// Unpacking the content
+					cElementSpace = getContentManager().extractContent(msgRequest);
+					
+					// We expect an action inside the message
+					if (cElementSpace instanceof Action) {
+						
+						Action agAction = (Action)cElementSpace;
+						Concept concRelease = agAction.getAction();
+						
+						// If the action is ReleaseCapsule...
+						if (concRelease instanceof ReleaseCapsule) {
+							ReleaseCapsule releaseObj = (ReleaseCapsule) concRelease;
+							
+							createCapsule(releaseObj.getLocation().getX(), releaseObj.getLocation().getY());
+							
+							System.out.println("Position -----> X: " + releaseObj.getLocation().getX() + " Y: " + releaseObj.getLocation().getY());
+						}
+						
+					}
+				}
+			} catch (Exception e) {					
+				e.printStackTrace();
+			}
+			
+			
+					
+		}
+		
+		public void createCapsule(int x, int y){
 			ContainerController cc = getContainerController();
 			AgentController ac;
 			try {
-				ac = cc.createNewAgent(CAPSULE, "es.upm.company01.Capsule", new Object[] {new String(CAPSULE)});
+				ac = cc.createNewAgent(CAPSULE, "es.upm.company01.Capsule", new Object[] {new String(CAPSULE), new Integer(x), new Integer(y)});
 				ac.start();
 				endRelease = true;
 			} catch (StaleProxyException e) {
@@ -69,7 +116,7 @@ public class Company extends Agent {
 				e.printStackTrace();
 			}
 		}
-		
+					
 		public boolean done() {
 			return endRelease;
 		}

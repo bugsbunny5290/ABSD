@@ -27,7 +27,6 @@ import es.upm.ontology.XplorationOntology;
 public class Capsule extends Agent {
 	// Codec for the SL language used and instance of the ontology
 	private Codec codec = new SLCodec();
-
 	// Declare Ontology
 	public XplorationOntology ontology = (XplorationOntology) XplorationOntology.getInstance();
 
