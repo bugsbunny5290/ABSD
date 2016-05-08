@@ -3,7 +3,11 @@
     <CLASSES>
       <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/joda-time/joda-time/2.9.3/9e46be514a4ed60bcfbaaba88a3c668cf30476ab/joda-time-2.9.3.jar!/" />
     </CLASSES>
-    <JAVADOC />
-    <SOURCES />
+    <JAVADOC>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/joda-time/joda-time/2.9.3/7c5834c4f1d9a9508b31842f057582261a37bcd3/joda-time-2.9.3-javadoc.jar!/" />
+    </JAVADOC>
+    <SOURCES>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/joda-time/joda-time/2.9.3/a4625f32e3ad783c611a1e16c67e6fd6333e728f/joda-time-2.9.3-sources.jar!/" />
+    </SOURCES>
   </library>
 </component>
