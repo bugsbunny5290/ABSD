@@ -142,7 +142,7 @@ public class Company extends Agent {
 						break;
 					case "REQUEST":
 						receiveMessageForRequest();
-						myAgent.doWait(500);
+						//myAgent.doWait(500);
 						break;
 					case "END":
 						this.end = true;
@@ -224,7 +224,7 @@ public class Company extends Agent {
 					// Process the message
 					int performative = msgReceive.getPerformative();
 					
-					myAgent.doWait(2000);
+					myAgent.doWait(1000);
 					
 					switch (performative)
 			        {
