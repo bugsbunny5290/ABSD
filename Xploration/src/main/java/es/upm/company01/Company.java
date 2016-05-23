@@ -89,8 +89,7 @@ public class Company extends Agent {
 						// If the action is ReleaseCapsule...
 						if (concRelease instanceof ReleaseCapsule) {
 							ReleaseCapsule releaseObj = (ReleaseCapsule) concRelease;
-							
-							//createCapsule(releaseObj.getLocation().getX(), releaseObj.getLocation().getY());
+
 							createCapsule(releaseObj);
 						}
 						
@@ -108,7 +107,6 @@ public class Company extends Agent {
 			ContainerController cc = getContainerController();
 			AgentController ac;
 			try {
-				//ac = cc.createNewAgent(CAPSULE, "es.upm.company01.Capsule", new Object[] {new String(CAPSULE), new Integer(x), new Integer(y)});
 				ac = cc.createNewAgent(CAPSULE, "es.upm.company01.Capsule", new Object[] {new String(CAPSULE), releaseObj.getLocation()});
 				ac.start();
 				endRelease = true;
@@ -165,7 +163,7 @@ public class Company extends Agent {
 				
 				this.stateRegistration = "REQUEST";
 				
-				myAgent.doWait(1000);
+				myAgent.doWait(500);
 				try {
 
 					// It finds agents of the required type
