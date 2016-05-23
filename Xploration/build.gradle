@@ -1,5 +1,5 @@
 group 'xploration.company01'
-version '0.0.4-SNAPSHOT'
+version '0.0.5-SNAPSHOT'
 
 apply plugin: 'java'
 apply plugin: 'idea'
@@ -33,7 +33,8 @@ repositories {
 
 dependencies {
     compile 'com.tilab.jade:jade:4.4.0'
-    compile 'com.github.kradalby:xploration-shared:0.0.10'
+    compile 'com.github.kradalby:xploration-shared:0.0.14'
     compile 'joda-time:joda-time:2.9.3'
+    compile 'com.github.kradalby:xploration-testing'
 
 }
