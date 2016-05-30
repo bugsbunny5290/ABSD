@@ -21,6 +21,7 @@ import java.util.ArrayList;
 import org.joda.time.DateTime;
 
 import es.upm.ontology.Location;
+import es.upm.ontology.RegisterAgents;
 import es.upm.ontology.RegistrationRequest;
 import es.upm.ontology.ReleaseCapsule;
 import es.upm.ontology.XplorationOntology;
@@ -98,9 +99,6 @@ public class Spacecraft extends Agent {
 			
 			if ( DateTime.now().isAfter(registerTime_End)) {
 
-				//endRelease = true;
-
-				//for(String companyReg : companiesRegister)
 				for(AID companyReg : companiesRegister)
 				{
 					System.out.println("Company ----->" + companyReg);
@@ -122,7 +120,6 @@ public class Spacecraft extends Agent {
 					
 					objReleaseCapsule.setLocation(objLocation);
 
-		
 					//Package the message
 					try {
 						getContentManager().fillContent(msg, new Action(getAID(), objReleaseCapsule));
@@ -137,8 +134,44 @@ public class Spacecraft extends Agent {
 					//Send the message
 					send(msg);
 					
+					//Receive a message from Rover
+					MessageTemplate mt = MessageTemplate.and(
+							MessageTemplate.and(MessageTemplate.MatchLanguage(codec.getName()),
+									MessageTemplate.MatchOntology(ontology.getName())),
+							MessageTemplate.and(MessageTemplate.MatchProtocol(ontology.PROTOCOL_RELEASE_CAPSULE),
+									MessageTemplate.MatchPerformative(ACLMessage.INFORM)));
+					
+					// The ContentManager transforms the message content (string) in java objects
+					ContentElement cElementSpace = null;
+					
+					// Waits for request
+					ACLMessage msgRequest = myAgent.receive(mt);
+					
+					try {
+						if (msgRequest != null) {
+							// Unpacking the content
+							cElementSpace = getContentManager().extractContent(msgRequest);
+							
+							// We expect an action inside the message
+							if (cElementSpace instanceof Action) {
+								
+								Action agAction = (Action)cElementSpace;
+								Concept concRelease = agAction.getAction();
+								
+								// If the action is ReleaseCapsule...
+								if (concRelease instanceof RegisterAgents) {
+									RegisterAgents registerAgentsObj = (RegisterAgents) concRelease;
+
+									//Respond to Spacecraft the Information about Capsule and Rover
+									System.out.println("Spacecraft receive: " + registerAgentsObj.getCapsule().getName() + " - " + registerAgentsObj.getRover().getName());
+								}
+								
+							}
+						}
+					} catch (Exception e) {					
+						e.printStackTrace();
+					}
 				}
-				
 				endRelease = true;
 			}
 			

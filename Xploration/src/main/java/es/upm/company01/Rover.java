@@ -20,6 +20,7 @@ import jade.content.onto.basic.*;
 import es.upm.ontology.Direction;
 import es.upm.ontology.Location;
 import es.upm.ontology.MineralResult;
+import es.upm.ontology.MoveInformation;
 import es.upm.ontology.RegistrationRequest;
 import es.upm.ontology.RequestRoverMovement;
 import es.upm.ontology.XplorationOntology;
@@ -29,11 +30,21 @@ public class Rover extends Agent {
 	private Codec codec = new SLCodec();
 	// Declare Ontology
 	public XplorationOntology ontology = (XplorationOntology) XplorationOntology.getInstance();
-	//Name of Rover
-	public final static String ROVER = "Rover01";
 	
 	//Name of World
 	public final static String WORLD = "World";
+	
+	//Name of Broker
+	public final static String BROKER = "Broker";
+	
+	//Agent Capsule from Ontology
+	private es.upm.ontology.Capsule infoCapsule = new es.upm.ontology.Capsule();
+		
+	//Agent Rover from Ontology
+	public es.upm.ontology.Rover infoRover = new es.upm.ontology.Rover();
+	
+	public Location locationRover = new Location();
+	public Direction directionRover = new Direction();
 
 	protected void setup() {
 		try{
@@ -42,20 +53,26 @@ public class Rover extends Agent {
 			// Register of the codec and the ontology to be used in the ContentManager
 			getContentManager().registerLanguage(codec);
 			getContentManager().registerOntology(ontology);
-			Location initialLocation = new Location();
 			
+			//Initial Location of Rover			
 			Object[] capsuleInfo = getArguments() ;
-			initialLocation = (Location) capsuleInfo[1];
 			
-			System.out.println(getLocalName() + ": "+ capsuleInfo[0] + " position X: " + initialLocation.getX() + " Y: " + initialLocation.getY());
+			infoCapsule =  (es.upm.ontology.Capsule) capsuleInfo[0];
+			
+			this.infoRover.setName(infoCapsule.getRover().getName());
+			this.infoRover.setRover_agent(getAID());
+			
+			infoCapsule.setRover(infoRover);
+			
+			Company.agCapsuleOnt = infoCapsule;
+			Company.agRoverOnt = infoRover;
+			
+			this.locationRover = (Location) capsuleInfo[1];
+			
+			System.out.println(getLocalName() + ": "+ this.infoRover.getName() + " position X: " + this.locationRover.getX() + " Y: " + this.locationRover.getY());
 			
 			RequestMovementBehaviuor reqMovRover = new RequestMovementBehaviuor(this);
 			addBehaviour(reqMovRover); 
-			
-			doWait(1000);
-			
-			//RequestAnalyzeMineralBehaviuor reqMineral = new RequestAnalyzeMineralBehaviuor(this);
-			//addBehaviour(reqMineral); 
 			
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -128,10 +145,9 @@ public class Rover extends Agent {
 						
 						//Send Direction
 						RequestRoverMovement objReqRoverMov = new RequestRoverMovement();
-						Direction objDirection = new Direction();
-						objDirection.setX(1);
+						directionRover.setX(1);
 						
-						objReqRoverMov.setDirection(objDirection);
+						objReqRoverMov.setDirection(directionRover);
 						
 						//Package the message
 						getContentManager().fillContent(msg, new Action(getAID(), objReqRoverMov));
@@ -180,6 +196,11 @@ public class Rover extends Agent {
 					case ACLMessage.INFORM:
 						System.out.println(getLocalName() + ": movement was Successful - INFORM");
 						
+						//Inform Position to Broker
+						InformRoverPosition informPosition = new InformRoverPosition (myAgent);
+						addBehaviour(informPosition); 
+						
+						//Request Analyze Mineral
 						RequestAnalyzeMineralBehaviuor reqMineral = new RequestAnalyzeMineralBehaviuor(myAgent);
 						addBehaviour(reqMineral); 
 						
@@ -274,7 +295,7 @@ public class Rover extends Agent {
 							}
 
 						} else {
-							System.out.println(getLocalName() + ": Didn't found a Spacecraft.");
+							System.out.println(getLocalName() + ": Didn't found a World.");
 						}
 							
 					} catch (Exception e) {
@@ -355,4 +376,77 @@ public class Rover extends Agent {
 					}
 				}
 		}
+	
+	//Inform the position to Broker 
+	class InformRoverPosition extends Behaviour {
+		private static final long serialVersionUID = 1L;
+		boolean endInform = false;
+		AID agBroker;
+		
+		public InformRoverPosition(Agent a) {
+			 super(a);
+		} 
+
+		public void action() {
+			
+			//Creates the description for the type of agent to be searched "World"
+			DFAgentDescription dfd = new DFAgentDescription();
+			ServiceDescription sd = new ServiceDescription();
+			
+			sd.setType(BROKER);
+			dfd.addServices(sd);
+			
+			try {
+				// It finds agents of the required type
+				DFAgentDescription[] res = new DFAgentDescription[20];
+				res = DFService.search(myAgent, dfd);
+
+				// Gets the first occurrence, if there was success
+				if (res.length > 0) {
+					
+					System.out.println(getLocalName() + ": stablished communication with Broker");
+					
+					for(DFAgentDescription foundAgent : res) {
+						
+						agBroker = (AID)foundAgent.getName();
+						
+						// Asks request to the World
+						ACLMessage msg = new ACLMessage(ACLMessage.INFORM);
+						msg.setSender(getAID());
+						msg.setProtocol(ontology.PROTOCOL_MOVE_INFO);
+						msg.setOntology(ontology.getName()); 
+						msg.setLanguage(codec.getName());
+						msg.addReceiver(agBroker);
+						
+						//Prepare the package with the information for Broker
+						MoveInformation objMoveInformation = new MoveInformation();
+						
+						objMoveInformation.setRover(infoRover);
+						objMoveInformation.setLocation(locationRover);
+						objMoveInformation.setDirection(directionRover);
+						
+						//Package the message
+						getContentManager().fillContent(msg, new Action(getAID(), objMoveInformation));
+						
+						//Send the message
+						send(msg);
+						
+						this.endInform = true;
+					}
+
+				} else {
+					System.out.println(getLocalName() + ": Didn't found a Broker.");
+				}
+					
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+			
+		}
+		
+		public boolean done() {
+			return this.endInform;
+		}
+		
+	}
 }

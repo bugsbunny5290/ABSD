@@ -20,6 +20,8 @@ import jade.content.onto.basic.*;
 
 import java.util.Date;
 
+import es.upm.ontology.Location;
+import es.upm.ontology.RegisterAgents;
 import es.upm.ontology.RegistrationRequest;
 import es.upm.ontology.ReleaseCapsule;
 import es.upm.ontology.XplorationOntology;
@@ -34,10 +36,19 @@ public class Company extends Agent {
 	
 	// Name of Spacecraft
 	public final static String SPACECRAFT = "Spacecraft";
-	//public final static String SPACECRAFT = "PROTOCOL_RELEASE_CAPSULE";
 	
 	//Name of Capsule
 	public final static String CAPSULE = "Capsule01";
+	
+	//Name of Rover
+	public final static String ROVER = "Rover01";
+	
+	//Agent Capsule from Ontology
+	public static es.upm.ontology.Capsule agCapsuleOnt = new es.upm.ontology.Capsule();
+	
+	//Agent Rover from Ontology
+	public static es.upm.ontology.Rover agRoverOnt = new es.upm.ontology.Rover();
+		
 
 
 	protected void setup() {
@@ -90,7 +101,40 @@ public class Company extends Agent {
 						if (concRelease instanceof ReleaseCapsule) {
 							ReleaseCapsule releaseObj = (ReleaseCapsule) concRelease;
 
+							//Create Capsule and Rover
 							createCapsule(releaseObj);
+							
+							//Respond to Spacecraft the Information about Capsule and Rover
+							System.out.println("Company: informs to Spacecraft: " + agCapsuleOnt.getName() + " - " + agCapsuleOnt.getRover().getName());
+							
+							ACLMessage reply = msgRequest.createReply();
+							
+							reply.setSender(getAID());
+							reply.setProtocol(ontology.PROTOCOL_RELEASE_CAPSULE);
+							reply.setPerformative(ACLMessage.INFORM);
+							reply.setOntology(ontology.getName()); 
+							reply.setLanguage(codec.getName());
+							reply.addReceiver(msgRequest.getSender());
+							
+							//RegisterAgents for Spacecraft
+							RegisterAgents objRegisterAgent = new RegisterAgents();
+							
+							objRegisterAgent.setCapsule(agCapsuleOnt);
+							objRegisterAgent.setRover(agRoverOnt);
+				
+							//Package the message
+							try {
+								getContentManager().fillContent(reply, new Action(getAID(), objRegisterAgent));
+							} catch (CodecException e) {
+								// TODO Auto-generated catch block
+								e.printStackTrace();
+							} catch (OntologyException e) {
+								// TODO Auto-generated catch block
+								e.printStackTrace();
+							}
+				
+							//Send the message
+							send(reply);
 						}
 						
 					}
@@ -106,8 +150,14 @@ public class Company extends Agent {
 		public void createCapsule(ReleaseCapsule releaseObj){
 			ContainerController cc = getContainerController();
 			AgentController ac;
+			
+			agRoverOnt.setName(ROVER);
+			
+			agCapsuleOnt.setName(CAPSULE);
+			agCapsuleOnt.setRover(agRoverOnt);
+			
 			try {
-				ac = cc.createNewAgent(CAPSULE, "es.upm.company01.Capsule", new Object[] {new String(CAPSULE), releaseObj.getLocation()});
+				ac = cc.createNewAgent(agCapsuleOnt.getName(), "es.upm.company01.Capsule", new Object[] {agCapsuleOnt, releaseObj.getLocation()});
 				ac.start();
 				endRelease = true;
 			} catch (StaleProxyException e) {

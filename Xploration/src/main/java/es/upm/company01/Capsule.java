@@ -29,8 +29,9 @@ public class Capsule extends Agent {
 	private Codec codec = new SLCodec();
 	// Declare Ontology
 	public XplorationOntology ontology = (XplorationOntology) XplorationOntology.getInstance();
-	//Name of Rover
-	public final static String ROVER = "Rover01";
+	
+	//Agent Capsule from Ontology
+	private es.upm.ontology.Capsule infoCapsule = new es.upm.ontology.Capsule();
 
 	protected void setup() {
 		try{
@@ -42,10 +43,14 @@ public class Capsule extends Agent {
 			
 			Object[] capsuleInfo = getArguments() ;
 			
+			infoCapsule = (es.upm.ontology.Capsule) capsuleInfo[0];
+			
+			infoCapsule.setCapsule_agent(getAID());
+			
 			ContainerController cc = getContainerController();
 			AgentController ac;
 			try {
-				ac = cc.createNewAgent(ROVER, "es.upm.company01.Rover", new Object[] {new String(ROVER), capsuleInfo[1]});
+				ac = cc.createNewAgent(infoCapsule.getRover().getName(), "es.upm.company01.Rover", new Object[] {infoCapsule, capsuleInfo[1]});
 				ac.start();
 			} catch (StaleProxyException e) {
 				// TODO Auto-generated catch block
