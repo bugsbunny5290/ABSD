@@ -322,8 +322,28 @@ public class World extends Agent{
 	public void generateMap(){
 		
 		Map<String, String> contentFileMap = extractContentFile();
+		Map<String, String> Map = new HashMap<String, String>();
 		
+		int row = Integer.parseInt(contentFileMap.get("row"));
+		int column = Integer.parseInt(contentFileMap.get("column"));
 		
+		for(int i = 1; i <= row; i++)
+		{
+			String[] lineMinerals = contentFileMap.get("line"+i).split(" ");
+			int nmineral = 0;
+			
+			if(i%2 == 0){
+				for (int j = 2; j <= column ; j=j+2) {
+					Map.put(i+","+j, lineMinerals[nmineral]);
+					nmineral++;
+				}
+			} else {
+				for (int j = 1; j <= column-1 ; j=j+2) {
+					Map.put(i+","+j, lineMinerals[nmineral]);
+					nmineral++;
+				}
+			}
+		}
 	}
 	
 	public Map<String, String> extractContentFile()
