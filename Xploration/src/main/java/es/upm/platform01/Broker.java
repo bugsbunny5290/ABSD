@@ -207,7 +207,9 @@ public class Broker extends Agent{
 									
 									msg.addReceiver(getCapsuleByRover(msgRequest.getSender()));
 									
-									System.out.println( "Broker: informs Mineral to Capsule" + getCapsuleByRover(msgRequest.getSender()));
+									doWait(500);
+									//System.out.println( "Broker: informs Mineral to Capsule" + getCapsuleByRover(msgRequest.getSender()));
+									System.out.println( "Broker: informs Mineral to Capsule" );
 									
 									//Package the message
 									try {

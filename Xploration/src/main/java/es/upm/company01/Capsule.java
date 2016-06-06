@@ -62,4 +62,12 @@ public class Capsule extends Agent {
 		}
 		
 	}
+	
+	class ReceiveRoverFindings extends CyclicBehaviour {
+		public void action() {}
+	}
+	
+	class SendFindingsToSpacecraft extends CyclicBehaviour {
+		public void action() {}
+	}
 }

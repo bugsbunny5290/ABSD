@@ -334,18 +334,18 @@ public class Spacecraft extends Agent {
 
 	}
 	
+	class ReceiveFindings extends CyclicBehaviour {
+		private static final long serialVersionUID = 1L;
+
+		public void action() {}
+	}
+	
 	public void generateXplorationMap(){
 		Spacecraft.xplorationMapObj.generateMap();
 		this.contentRandomCell = xplorationMapObj.getCellsForInitialRelease(nCapsule);
 		
 		/*
-		if(xplorationMapObj.allowNextMovement(10, 6, 1, 1)){
-			// Aqui
-		} else
-		{
-			//Aca
-		}
-		
+		if(xplorationMapObj.allowNextMovement(10, 6, 1, 1)){} else{}
 		xplorationMapObj.generateAroundCellsRange2 (8, 8);
 		*/
 	}
