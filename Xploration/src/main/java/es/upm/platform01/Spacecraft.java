@@ -17,9 +17,11 @@ import jade.content.onto.*;
 import jade.content.onto.basic.*;
 
 import java.util.ArrayList;
+import java.util.List;
 
 import org.joda.time.DateTime;
 
+import es.upm.company01.Rover;
 import es.upm.ontology.Location;
 import es.upm.ontology.RegisterAgents;
 import es.upm.ontology.RegistrationRequest;
@@ -38,7 +40,16 @@ public class Spacecraft extends Agent {
 	public final static String SPACECRAFT = "Spacecraft";
 	
 	ArrayList<AID> companiesRegister = new ArrayList();
-	//ArrayList<String> companiesRegister = new ArrayList();
+	
+	public static ArrayList<RegisterAgents> registerAgents = new ArrayList<RegisterAgents>();
+	
+	public static XplorationMap xplorationMapObj = new XplorationMap(); 
+	ArrayList<Location> contentRandomCell = new ArrayList<Location>();
+	
+	int nIndexRandomCell = 0, nCapsule = 5;
+	
+	public static boolean startToMoveRover = false;
+	
 	DateTime registerTime_Begin; 
 	DateTime registerTime_End;
 	DateTime Currentime;
@@ -72,12 +83,14 @@ public class Spacecraft extends Agent {
 			System.out.println(getLocalName() + ": registered in the DF");
 			dfd = null;
 			sd = null;
-			doWait(1000);
+			
+			//doWait(1000);
 			
 			RegistrationBehaviour registerCompany = new RegistrationBehaviour(this);
 			addBehaviour(registerCompany); 
 			
-			//doWait(5000);
+			//Generate Map and RandomCells
+			generateXplorationMap();
 			
 			ReleaseCapsuleBehavoiur releaseCapsuleCompany = new ReleaseCapsuleBehavoiur(this);
 			addBehaviour(releaseCapsuleCompany);
@@ -85,6 +98,7 @@ public class Spacecraft extends Agent {
 		} catch (FIPAException e) {
 			e.printStackTrace();
 		}
+
 	}
 	
 	class ReleaseCapsuleBehavoiur extends SimpleBehaviour{
@@ -101,8 +115,6 @@ public class Spacecraft extends Agent {
 
 				for(AID companyReg : companiesRegister)
 				{
-					System.out.println("Company ----->" + companyReg);
-					
 					// Asks request to the Spacecraft
 					ACLMessage msg = new ACLMessage(ACLMessage.INFORM);
 					msg.setSender(getAID());
@@ -115,10 +127,12 @@ public class Spacecraft extends Agent {
 					ReleaseCapsule objReleaseCapsule = new ReleaseCapsule();
 					Location objLocation = new Location();
 					
-					objLocation.setX(1);
-					objLocation.setY(2);
+					objLocation.setX(contentRandomCell.get(nIndexRandomCell).getX());
+					objLocation.setY(contentRandomCell.get(nIndexRandomCell).getY());
 					
 					objReleaseCapsule.setLocation(objLocation);
+					objReleaseCapsule.setSizeX(XplorationMap.maxX);
+					objReleaseCapsule.setSizeY(XplorationMap.maxY);
 
 					//Package the message
 					try {
@@ -161,9 +175,12 @@ public class Spacecraft extends Agent {
 								// If the action is ReleaseCapsule...
 								if (concRelease instanceof RegisterAgents) {
 									RegisterAgents registerAgentsObj = (RegisterAgents) concRelease;
-
+									
+									registerAgents.add(registerAgentsObj);
+									
 									//Respond to Spacecraft the Information about Capsule and Rover
-									System.out.println("Spacecraft receive: " + registerAgentsObj.getCapsule().getName() + " - " + registerAgentsObj.getRover().getName());
+									System.out.println("Spacecraft: Release " + registerAgentsObj.getCapsule().getName() + " - " + registerAgentsObj.getRover().getName());
+									
 								}
 								
 							}
@@ -316,5 +333,23 @@ public class Spacecraft extends Agent {
 			return true;
 
 	}
+	
+	public void generateXplorationMap(){
+		Spacecraft.xplorationMapObj.generateMap();
+		this.contentRandomCell = xplorationMapObj.getCellsForInitialRelease(nCapsule);
+		
+		/*
+		if(xplorationMapObj.allowNextMovement(10, 6, 1, 1)){
+			// Aqui
+		} else
+		{
+			//Aca
+		}
+		
+		xplorationMapObj.generateAroundCellsRange2 (8, 8);
+		*/
+	}
+	
+	
 
 }

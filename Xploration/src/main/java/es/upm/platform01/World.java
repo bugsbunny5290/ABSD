@@ -31,9 +31,11 @@ import org.joda.time.DateTime;
 import es.upm.ontology.Location;
 import es.upm.ontology.Mineral;
 import es.upm.ontology.MineralResult;
+import es.upm.ontology.RegisterAgents;
 import es.upm.ontology.RegistrationRequest;
 import es.upm.ontology.ReleaseCapsule;
 import es.upm.ontology.RequestRoverMovement;
+import es.upm.ontology.Rover;
 import es.upm.ontology.XplorationOntology;
 import es.upm.platform01.Spacecraft.RegistrationBehaviour;
 import es.upm.platform01.Spacecraft.ReleaseCapsuleBehavoiur;
@@ -50,6 +52,10 @@ public class World extends Agent{
 	public final static String WORLD = "World";
 	
 	public Map<Integer, AID> directionRover = new HashMap<Integer, AID>(); 
+	
+	//AID Rover and Location
+	public static Map<AID, Location> locationAgents = new HashMap<AID, Location>(); 
+	
 	ArrayList<AID> crashRovers = new ArrayList<AID>();
 	
 	int numRequest = 0;
@@ -58,9 +64,6 @@ public class World extends Agent{
 		// Register of the codec and the ontology to be used in the
 		getContentManager().registerLanguage(codec);
 		getContentManager().registerOntology(ontology);
-		
-		XplorationMap xplorationMapObj = new XplorationMap(); 
-		xplorationMapObj.generateMap();
 		
 		System.out.println(getLocalName() + ": has entered");
 		
@@ -113,6 +116,9 @@ public class World extends Agent{
 
 			// Waits for request
 			ACLMessage msgRequest = myAgent.receive(mt);
+			
+			XplorationMap objXplorationMap = new XplorationMap();
+			XplorationCell varCell, varCellMovement = null;
 
 			try {
 
@@ -143,11 +149,17 @@ public class World extends Agent{
 							reply.setLanguage(codec.getName());
 							reply.addReceiver(msgRequest.getSender());
 
-
+							if (locationAgents.containsKey(msgRequest.getSender())) {
+								
+								varCell =  objXplorationMap.getCellDirection(locationAgents.get(msgRequest.getSender()).getX(), locationAgents.get(msgRequest.getSender()).getY(), direction);
+								varCellMovement = objXplorationMap.getCellDirection(varCell.getX(), varCell.getY(), direction); 
+								
+							}
 							if (msgRequest.getPerformative() == ACLMessage.REQUEST) {
-
 								// If doesn't exist the position
-								if(!directionRover.containsKey(direction)) {
+								
+								//if(!directionRover.containsKey(direction)) {
+								if(!locationAgents.containsValue(varCellMovement)) {
 									if (numRequest == 1){
 										//Get Company
 										String roverName = msgRequest.getSender().getLocalName();
@@ -270,13 +282,19 @@ public class World extends Agent{
 						Mineral objMineral = new Mineral();
 						
 						//According to the position of a Rover, send the mineral information
-						objMineral.setType("A"); 
+						XplorationMap objXplorationMap = new XplorationMap();
+						
+						int x = locationAgents.get(msgRequest.getSender()).getX();
+						int y = locationAgents.get(msgRequest.getSender()).getY();
+						
+						objMineral.setType(objXplorationMap.getMineralByCell(x+","+y)); 
 						
 						objMineralFound.setMineral(objMineral);
 						
 						//Package the message
 						try {
 							getContentManager().fillContent(reply, new Action(getAID(), objMineralFound));
+							
 							//Send the message
 							send(reply);
 							

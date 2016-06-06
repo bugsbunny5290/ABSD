@@ -104,9 +104,6 @@ public class Company extends Agent {
 							//Create Capsule and Rover
 							createCapsule(releaseObj);
 							
-							//Respond to Spacecraft the Information about Capsule and Rover
-							System.out.println("Company: informs to Spacecraft: " + agCapsuleOnt.getName() + " - " + agCapsuleOnt.getRover().getName());
-							
 							ACLMessage reply = msgRequest.createReply();
 							
 							reply.setSender(getAID());
@@ -132,9 +129,13 @@ public class Company extends Agent {
 								// TODO Auto-generated catch block
 								e.printStackTrace();
 							}
-				
+							
 							//Send the message
 							send(reply);
+							
+							//Respond to Spacecraft the Information about Capsule and Rover
+							System.out.println("Company: informs to Spacecraft: " + agCapsuleOnt.getName() + " - " + agCapsuleOnt.getRover().getName());
+							
 						}
 						
 					}
@@ -157,7 +158,7 @@ public class Company extends Agent {
 			agCapsuleOnt.setRover(agRoverOnt);
 			
 			try {
-				ac = cc.createNewAgent(agCapsuleOnt.getName(), "es.upm.company01.Capsule", new Object[] {agCapsuleOnt, releaseObj.getLocation()});
+				ac = cc.createNewAgent(agCapsuleOnt.getName(), "es.upm.company01.Capsule", new Object[] {agCapsuleOnt, releaseObj});
 				ac.start();
 				endRelease = true;
 			} catch (StaleProxyException e) {
@@ -186,7 +187,7 @@ public class Company extends Agent {
 				switch (stateRegistration){
 					case "BEGIN":						
 						sendRegistrationRequest();
-						myAgent.doWait(500);
+						doWait(20);
 						break;
 					case "REQUEST":
 						receiveMessageForRequest();
@@ -213,7 +214,7 @@ public class Company extends Agent {
 				
 				this.stateRegistration = "REQUEST";
 				
-				myAgent.doWait(500);
+				myAgent.doWait(200);
 				try {
 
 					// It finds agents of the required type
@@ -272,7 +273,7 @@ public class Company extends Agent {
 					// Process the message
 					int performative = msgReceive.getPerformative();
 					
-					myAgent.doWait(1000);
+					//myAgent.doWait(1000);
 					
 					switch (performative)
 			        {

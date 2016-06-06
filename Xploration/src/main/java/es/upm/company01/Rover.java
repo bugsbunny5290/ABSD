@@ -17,13 +17,20 @@ import jade.content.lang.sl.*;
 
 import jade.content.onto.basic.*;
 
+import java.util.ArrayList;
+
 import es.upm.ontology.Direction;
+import es.upm.ontology.Finding;
+import es.upm.ontology.Findings;
+import es.upm.ontology.FindingsMessage;
+import es.upm.ontology.Frequency;
 import es.upm.ontology.Location;
 import es.upm.ontology.MineralResult;
 import es.upm.ontology.MoveInformation;
 import es.upm.ontology.RegistrationRequest;
 import es.upm.ontology.RequestRoverMovement;
 import es.upm.ontology.XplorationOntology;
+import es.upm.platform01.Spacecraft;
 
 public class Rover extends Agent {
 	// Codec for the SL language used and instance of the ontology
@@ -37,14 +44,19 @@ public class Rover extends Agent {
 	//Name of Broker
 	public final static String BROKER = "Broker";
 	
-	//Agent Capsule from Ontology
+	//Capsule from Ontology
 	private es.upm.ontology.Capsule infoCapsule = new es.upm.ontology.Capsule();
 		
-	//Agent Rover from Ontology
+	//Rover from Ontology
 	public es.upm.ontology.Rover infoRover = new es.upm.ontology.Rover();
+	
+	//ReleaseCapsule from Ontology
+	public es.upm.ontology.ReleaseCapsule infoReleaseCapsule = new es.upm.ontology.ReleaseCapsule();
 	
 	public Location locationRover = new Location();
 	public Direction directionRover = new Direction();
+	
+	public Findings mineralFindings = new Findings();
 
 	protected void setup() {
 		try{
@@ -58,6 +70,7 @@ public class Rover extends Agent {
 			Object[] capsuleInfo = getArguments() ;
 			
 			infoCapsule =  (es.upm.ontology.Capsule) capsuleInfo[0];
+			infoReleaseCapsule = (es.upm.ontology.ReleaseCapsule) capsuleInfo[1];
 			
 			this.infoRover.setName(infoCapsule.getRover().getName());
 			this.infoRover.setRover_agent(getAID());
@@ -67,12 +80,21 @@ public class Rover extends Agent {
 			Company.agCapsuleOnt = infoCapsule;
 			Company.agRoverOnt = infoRover;
 			
-			this.locationRover = (Location) capsuleInfo[1];
+			this.locationRover = infoReleaseCapsule.getLocation();
 			
 			System.out.println(getLocalName() + ": "+ this.infoRover.getName() + " position X: " + this.locationRover.getX() + " Y: " + this.locationRover.getY());
 			
-			RequestMovementBehaviuor reqMovRover = new RequestMovementBehaviuor(this);
-			addBehaviour(reqMovRover); 
+			//Inform Position to Broker
+			InformRoverPosition informPosition = new InformRoverPosition (this);
+			addBehaviour(informPosition); 
+			
+			//Request Analyze Mineral
+			RequestAnalyzeMineralBehaviuor reqMineral = new RequestAnalyzeMineralBehaviuor(this);
+			addBehaviour(reqMineral); 
+			
+			//RequestMovementBehaviuor reqMovRover = new RequestMovementBehaviuor(this);
+			//addBehaviour(reqMovRover);
+			
 			
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -353,8 +375,18 @@ public class Rover extends Agent {
 											//Get Company
 											String mineralFound = request.getMineral().getType();
 											
+											doWait(500);	
 											// If an Request arrives
 											System.out.println(myAgent.getLocalName() + ": found is "+ mineralFound);
+											
+											Finding actualFinding = new Finding();
+											actualFinding.setLocation(locationRover);
+											actualFinding.setMineral(request.getMineral());
+											
+											mineralFindings.addFinding(actualFinding);
+											
+											InformMineral informMineralBehaviour = new InformMineral(myAgent);
+											addBehaviour(informMineralBehaviour);
 										}
 									}
 									
@@ -449,4 +481,79 @@ public class Rover extends Agent {
 		}
 		
 	}
+	
+	//Send Minerals to Broker 
+	class InformMineral extends Behaviour {
+			private static final long serialVersionUID = 1L;
+			boolean endInform = false;
+			AID agBroker;
+			
+			public InformMineral(Agent a) {
+				 super(a);
+			} 
+
+			public void action() {
+				
+				//Creates the description for the type of agent to be searched "World"
+				DFAgentDescription dfd = new DFAgentDescription();
+				ServiceDescription sd = new ServiceDescription();
+				
+				sd.setType(BROKER);
+				dfd.addServices(sd);
+				
+				try {
+					// It finds agents of the required type
+					DFAgentDescription[] res = new DFAgentDescription[20];
+					res = DFService.search(myAgent, dfd);
+
+					// Gets the first occurrence, if there was success
+					if (res.length > 0) {
+						
+						System.out.println(getLocalName() + ": stablished communication with Broker");
+						
+						for(DFAgentDescription foundAgent : res) {
+							
+							agBroker = (AID)foundAgent.getName();
+							
+							// Asks request to the World
+							ACLMessage msg = new ACLMessage(ACLMessage.INFORM);
+							msg.setSender(getAID());
+							msg.setProtocol(ontology.PROTOCOL_SEND_FINDINGS);
+							msg.setOntology(ontology.getName()); 
+							msg.setLanguage(codec.getName());
+							msg.addReceiver(agBroker);
+							
+							//Prepare the package with the information for Broker
+							FindingsMessage objFindingsMessage = new FindingsMessage();
+							Frequency objFrecuency = new Frequency();
+							
+							objFrecuency.setChannel(1);
+							
+							objFindingsMessage.setFindings(mineralFindings);
+							objFindingsMessage.setFrequency(objFrecuency);
+							
+							//Package the message
+							getContentManager().fillContent(msg, new Action(getAID(), objFindingsMessage));
+							
+							//Send the message
+							send(msg);
+							
+							this.endInform = true;
+						}
+
+					} else {
+						System.out.println(getLocalName() + ": Didn't found a Broker.");
+					}
+						
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+				
+			}
+			
+			public boolean done() {
+				return this.endInform;
+			}
+			
+		}
 }
